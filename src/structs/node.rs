@@ -5,6 +5,7 @@ use std::fmt;
 use chrono::{DateTime,Utc,Duration};
 use super::util::*;
 
+#[derive(Copy, Clone)]
 pub struct Node {
 	pub endpoint: Endpoint,
 	pub node_id: HashId,
@@ -21,11 +22,12 @@ impl Node {
 		Utc::now() - self.last_seen > Duration::minutes(15)
 	}
 
-	pub fn distance(&self, hash: &HashId) -> HashId {
-		self.node_id.distance_hash(hash)
+	pub fn distance(self, node: Node) -> HashId {
+		self.node_id ^ node.node_id
 	}
 }
 
+#[derive(Copy, Clone)]
 pub struct Endpoint {
 	port: u16,
 	addr: Ipv4Addr
@@ -33,10 +35,7 @@ pub struct Endpoint {
 
 impl Endpoint {
 	pub fn new (addr: &str, port: u16) -> Result<Endpoint, std::net::AddrParseError> { 
-		match Ipv4Addr::from_str(addr) {
-			Ok(parsed) => Ok(Endpoint { addr: parsed, port }),
-			Err(error) => Err(error) 
-		}
+		Ok(Endpoint { addr: Ipv4Addr::from_str(addr)?, port })
 	}
 }
 
