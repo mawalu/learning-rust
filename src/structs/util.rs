@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::ops::BitXor;
 use std::fmt;
 
-#[derive(Copy, Clone, Eq)]
+#[derive(Copy, Clone, Eq, Debug)]
 pub struct HashId {
 	pub hash: [u8; 20]
 }

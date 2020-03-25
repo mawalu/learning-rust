@@ -1,9 +1,17 @@
 use std::fmt;
 
-pub struct BucketCapacityError;
+pub struct BucketError {
+	message: String
+}
 
-impl fmt::Debug for BucketCapacityError {
+impl BucketError {
+	pub fn new(message: String) -> BucketError {
+		BucketError { message }
+	}
+}
+
+impl fmt::Debug for BucketError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "The bucket has already reached its max capacity")
+        write!(f, "{}", self.message)
     }
 }

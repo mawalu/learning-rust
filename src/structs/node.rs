@@ -5,11 +5,11 @@ use std::fmt;
 use chrono::{DateTime,Utc,Duration};
 use super::util::*;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Eq)]
 pub struct Node {
 	pub endpoint: Endpoint,
 	pub node_id: HashId,
-	last_seen: DateTime<Utc>,
+	pub last_seen: DateTime<Utc>,
 	failed_queries: u8
 }
 
@@ -27,7 +27,13 @@ impl Node {
 	}
 }
 
-#[derive(Copy, Clone)]
+impl PartialEq for Node {
+	fn eq(&self, other: &Self) -> bool {
+		self.node_id == other.node_id
+	}
+}
+
+#[derive(Copy, Clone, Debug, Eq)]
 pub struct Endpoint {
 	port: u16,
 	addr: Ipv4Addr
@@ -36,6 +42,12 @@ pub struct Endpoint {
 impl Endpoint {
 	pub fn new (addr: &str, port: u16) -> Result<Endpoint, std::net::AddrParseError> {
 		Ok(Endpoint { addr: Ipv4Addr::from_str(addr)?, port })
+	}
+}
+
+impl PartialEq for Endpoint {
+	fn eq(&self, other: &Self) -> bool {
+		self.addr == other.addr && self.port == other.port
 	}
 }
 
@@ -54,15 +66,13 @@ impl fmt::Display for Endpoint {
 #[cfg(test)]
 mod tests {
 	use chrono::Duration;
-
 	use super::*;
-	use super::super::util::*;
 
 	fn get_node() -> Node {
 		Node::new(
 			Endpoint::new("127.0.0.1", 4444).unwrap(),
 			HashId::new([17; 20])
-			)
+		)
 	}
 
 	#[test]
