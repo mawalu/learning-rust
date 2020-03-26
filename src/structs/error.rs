@@ -15,3 +15,11 @@ impl fmt::Debug for BucketError {
         write!(f, "{}", self.message)
     }
 }
+
+pub struct InvalidHashIdError {}
+
+impl fmt::Debug for InvalidHashIdError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Invalid HashId")
+    }
+}

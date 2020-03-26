@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Serialize, Deserialize};
 use serde_bencode::de;
 
@@ -7,6 +9,12 @@ pub type MessageId = String;
 pub type ClientIdentifier = String;
 
 #[derive(Debug, Deserialize)]
+pub struct ErrorResponse {
+	code: u8,
+	description: String
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Arguments {
 	#[serde(rename = "p")]
@@ -42,9 +50,17 @@ pub enum Message {
 		id: MessageId,
 		#[serde(rename = "v")]
 		client: Option<ClientIdentifier>,
+		#[serde(rename = "e")]
+		error: ErrorResponse
 	},
+	#[serde(rename = "r")]
 	Response {
-
+		#[serde(rename = "t")]
+		id: MessageId,
+		#[serde(rename = "v")]
+		client: Option<ClientIdentifier>,
+		#[serde(rename = "r")]
+		values: HashMap<String, String>
 	}
 }
 
@@ -54,16 +70,49 @@ mod tests {
 
 	#[test]
 	fn test_decode_ping() {
-		let input = "d1:ad2:id20:ffffffffffffffffffffe1:q4:ping1:t2:aa1:y1:qe";
+		let input = "d1:ad2:id40:ffffffffffffffffffffffffffffffffffffffffe1:t2:aa1:v4:aa001:y1:qe";
 		let deserialize = de::from_str::<Message>(input).unwrap();
 
 		match deserialize {
 			Message::Query { id, client, args } => {
 				assert_eq!(id, "aa".to_owned());
+				assert_eq!(client.unwrap(), "aa00".to_owned());
 				match args {
-					Arguments::Ping { id } => assert_eq!(id, "ffffffffffffffffffff".to_owned()),
+					Arguments::Ping { id } => assert_eq!(HashId::from_str(id).unwrap(), HashId::new([255; 20])),
 					_ => panic!("wrong query")
 				}
+			},
+			_ => panic!("wrong command"),
+		}
+	}
+
+	#[test]
+	fn test_decode_error() {
+		let input = "d1:eli201e23:A Generic Error Ocurrede1:t2:aa1:v4:aa001:y1:ee";
+		let deserialize = de::from_str::<Message>(input).unwrap();
+
+		match deserialize {
+			Message::Error { id, client, error } => {
+				assert_eq!(id, "aa".to_owned());
+				assert_eq!(client.unwrap(), "aa00".to_owned());
+				assert_eq!(error.code, 201);
+				assert_eq!(error.description, "A Generic Error Ocurred".to_owned());
+			},
+			_ => panic!("wrong command"),
+		}
+	}
+
+	#[test]
+	fn test_decode_response() {
+		let input = "d1:rd2:id40:ffffffffffffffffffffffffffffffffffffffff5:nodes17:compact_node_info5:token6:secrete1:t2:aa1:v4:aa001:y1:re";
+		let deserialize = de::from_str::<Message>(input).unwrap();
+
+		match deserialize {
+			Message::Response { id, client, values } => {
+				assert_eq!(id, "aa".to_owned());
+				assert_eq!(client.unwrap(), "aa00".to_owned());
+				assert_eq!(values.get("token").unwrap(), &"secret".to_owned());
+				assert_eq!(values.get("nodes").unwrap(), &"compact_node_info".to_owned());
 			},
 			_ => panic!("wrong command"),
 		}

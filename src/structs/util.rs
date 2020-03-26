@@ -2,6 +2,8 @@ use std::cmp::Ordering;
 use std::ops::BitXor;
 use std::fmt;
 
+use super::error::*;
+
 #[derive(Copy, Clone, Eq, Debug)]
 pub struct HashId {
 	pub hash: [u8; 20]
@@ -10,6 +12,24 @@ pub struct HashId {
 impl HashId {
 	pub fn new(hash: [u8; 20]) -> HashId {
 		HashId { hash }
+	}
+
+	pub fn from_str(input: String) -> Result<HashId, InvalidHashIdError> {
+		let vec = match hex::decode(input) {
+			Ok(vec) => vec,
+			Err(_e) => return Err(InvalidHashIdError {})
+		};
+
+		if vec.len() != 20 {
+			return Err(InvalidHashIdError {})
+		}
+
+		let mut hash = [0; 20];
+		for i in 0..20 {
+			hash[i] = vec[i];
+		}
+
+		Ok(HashId { hash })
 	}
 }
 
