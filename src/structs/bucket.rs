@@ -16,7 +16,64 @@ impl Kbuckets {
         }
     }
 
-    pub fn find_index(&mut self, id: HashId) -> Option<(usize, &mut Bucket)> {
+    pub fn find_closest_nodes(&self, id: &HashId) -> Option<Vec<Node>> {
+        let (index, bucket) = self.find_index(id)?;
+        let mut closest = Vec::<Node>::new();
+        let mut offset = 0;
+
+        closest.extend_from_slice(&bucket.nodes);
+
+        loop {
+            offset += 1;
+            let len = closest.len();
+
+            self.try_extend(&mut closest, index, offset);
+
+            if len == closest.len() || closest.len() == 8 {
+                break;
+            }
+        }
+
+        closest.sort_unstable_by(|a, b| (a.node_id ^ *id).cmp(&(b.node_id ^ *id)));
+        closest.truncate(8);
+
+        Some(closest)
+    }
+
+    fn try_extend(&self, merged: &mut Vec<Node>, start: usize, offset: usize) {
+        let upper = start.checked_add(offset);
+        let lower = start.checked_sub(offset);
+
+        if upper.is_none() || lower.is_none() {
+            return;
+        }
+
+        for i in [upper.unwrap(), lower.unwrap()].iter() {
+            match self.buckets.get(*i) {
+                Some(bucket) => merged.extend_from_slice(bucket.nodes.as_slice()),
+                None => continue,
+            };
+        }
+    }
+
+    pub fn find_index(&self, id: &HashId) -> Option<(usize, &Bucket)> {
+        for (i, bucket) in self.buckets.iter().enumerate() {
+            if id <= &bucket.upper_boundary {
+                return Some((i, bucket));
+            }
+        }
+
+        None
+    }
+
+    pub fn find(&self, id: &HashId) -> Option<&Bucket> {
+        match self.find_index(id) {
+            Some((_, bucket)) => Some(bucket),
+            None => None,
+        }
+    }
+
+    pub fn find_index_mut(&mut self, id: HashId) -> Option<(usize, &mut Bucket)> {
         for (i, bucket) in self.buckets.iter_mut().enumerate() {
             if id <= bucket.upper_boundary {
                 return Some((i, bucket));
@@ -26,16 +83,23 @@ impl Kbuckets {
         None
     }
 
-    pub fn find(&mut self, id: HashId) -> Option<&mut Bucket> {
-        match self.find_index(id) {
+    pub fn find_mut(&mut self, id: HashId) -> Option<&mut Bucket> {
+        match self.find_index_mut(id) {
             Some((_, bucket)) => Some(bucket),
             None => None,
         }
     }
 
+    pub fn update_timestamps(&mut self, id: &HashId) {
+        match self.find_mut(*id) {
+            Some(bucket) => bucket.update_timestamps(id),
+            None => {}
+        }
+    }
+
     pub fn split(&mut self, id: HashId) {
         let mut new_bucket = Bucket::new(id);
-        let (index, bucket) = self.find_index(id).unwrap();
+        let (index, bucket) = self.find_index_mut(id).unwrap();
 
         let mut i = 0;
         while i < bucket.nodes.len() {
@@ -54,7 +118,7 @@ impl Kbuckets {
 #[derive(Debug)]
 pub struct Bucket {
     pub upper_boundary: HashId,
-    nodes: Vec<Node>,
+    pub nodes: Vec<Node>,
     last_changed: DateTime<Utc>,
 }
 
@@ -83,6 +147,26 @@ impl Bucket {
         self.last_changed = Utc::now();
         self.nodes.push(node);
         Ok(())
+    }
+
+    pub fn find_mut(&mut self, id: &HashId) -> Option<&mut Node> {
+        for node in self.nodes.iter_mut() {
+            if node.node_id == *id {
+                return Some(node);
+            }
+        }
+
+        None
+    }
+
+    pub fn update_timestamps(&mut self, id: &HashId) {
+        match self.find_mut(id) {
+            Some(node) => {
+                node.last_seen = Utc::now();
+                self.last_changed = Utc::now();
+            }
+            None => {}
+        }
     }
 
     pub fn questionables(&self) -> Vec<&Node> {
@@ -200,12 +284,53 @@ mod tests {
         buckets.split(split_boundary);
 
         assert_eq!(
-            buckets.find(HashId::new([10; 20])).unwrap().upper_boundary,
+            buckets
+                .find_mut(HashId::new([10; 20]))
+                .unwrap()
+                .upper_boundary,
             split_boundary
         );
         assert_eq!(
-            buckets.find(HashId::new([200; 20])).unwrap().upper_boundary,
+            buckets
+                .find_mut(HashId::new([200; 20]))
+                .unwrap()
+                .upper_boundary,
             HashId::new([0xFF; 20])
         );
+    }
+
+    #[test]
+    fn test_find_closest_nodes() {
+        let mut buckets = Kbuckets::new();
+
+        buckets.split(HashId::new([6; 20]));
+        buckets.split(HashId::new([4; 20]));
+
+        for i in 0..13 {
+            if i == 5 || i == 4 {
+                continue;
+            }
+
+            let node = get_node([i; 20]);
+            buckets
+                .find_mut(node.node_id)
+                .unwrap()
+                .insert(node)
+                .unwrap();
+        }
+
+        let closest = buckets.find_closest_nodes(&HashId::new([5; 20])).unwrap();
+
+        assert_eq!(closest.len(), 8);
+        assert_eq!(closest[0].node_id, HashId::new([7; 20]));
+        assert_eq!(closest[1].node_id, HashId::new([6; 20]));
+        assert_eq!(closest[2].node_id, HashId::new([1; 20]));
+        assert_eq!(closest[3].node_id, HashId::new([0; 20]));
+        assert_eq!(closest[4].node_id, HashId::new([3; 20]));
+        assert_eq!(closest[5].node_id, HashId::new([2; 20]));
+        assert_eq!(closest[6].node_id, HashId::new([12; 20]));
+        assert_eq!(closest[7].node_id, HashId::new([9; 20]));
+
+        println!("{:?}", closest);
     }
 }

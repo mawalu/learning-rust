@@ -1,8 +1,11 @@
+use std::collections::HashMap;
 use std::cmp::Ordering;
 use std::fmt;
 use std::ops::BitXor;
 
 use super::error::*;
+
+type PeerList = HashMap<String, Vec<String>>;
 
 #[derive(Copy, Clone, Eq, Debug)]
 pub struct HashId {
@@ -30,6 +33,10 @@ impl HashId {
         }
 
         Ok(HashId { hash })
+    }
+
+    pub fn to_str(&self) -> String {
+        hex::encode(self.hash)
     }
 }
 

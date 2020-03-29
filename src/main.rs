@@ -1,7 +1,9 @@
+mod handler;
 mod structs;
 
-use crate::structs::node::*;
-use crate::structs::util::*;
+use handler::DhtHandler;
+use structs::node::*;
+use structs::util::*;
 
 fn main() {
     let parsed =
