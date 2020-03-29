@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use serde::{Serialize, Deserialize};
 use serde_bencode::de;
 
@@ -16,19 +14,45 @@ pub struct ErrorResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Arguments {
-	#[serde(rename = "p")]
-	Ping {
-		id: String
-	},
+pub enum Query {
 	FindNode {
-
+		id: String,
+		target: String,
 	},
 	GetPeers {
-
+		id: String,
+		info_hash: String
 	},
 	AnnouncePeer {
+		id: String,
+		implied_port: Option<bool>,
+		port: u16,
+		token: String
+	},
+	Ping {
+		id: String
+	}
+}
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Response {
+	FoundPeers {
+		id: String,
+		token: String,
+		values: Vec<String>
+	},
+	FoundPeerNodes {
+		id: String,
+		token: String,
+		nodes: String
+	},
+	FoundNodes {
+		id: String,
+		nodes: String
+	},
+	Empty {
+		id: String
 	}
 }
 
@@ -42,7 +66,7 @@ pub enum Message {
 		#[serde(rename = "v")]
 		client: Option<ClientIdentifier>,
 		#[serde(rename = "a")]
-		args: Arguments
+		args: Query
 	},
 	#[serde(rename = "e")]
 	Error {
@@ -60,7 +84,7 @@ pub enum Message {
 		#[serde(rename = "v")]
 		client: Option<ClientIdentifier>,
 		#[serde(rename = "r")]
-		values: HashMap<String, String>
+		response: Response
 	}
 }
 
@@ -78,7 +102,25 @@ mod tests {
 				assert_eq!(id, "aa".to_owned());
 				assert_eq!(client.unwrap(), "aa00".to_owned());
 				match args {
-					Arguments::Ping { id } => assert_eq!(HashId::from_str(id).unwrap(), HashId::new([255; 20])),
+					Query::Ping { id } => assert_eq!(HashId::from_str(id).unwrap(), HashId::new([255; 20])),
+					_ => panic!("wrong query")
+				}
+			},
+			_ => panic!("wrong command"),
+		}
+	}
+
+	#[test]
+	fn test_decode_find_node() {
+		let input = "d1:ad2:id40:ffffffffffffffffffffffffffffffffffffffff6:target3:fffe1:t2:aa1:v4:aa001:y1:qe";
+		let deserialize = de::from_str::<Message>(input).unwrap();
+
+		match deserialize {
+			Message::Query { id, client, args } => {
+				assert_eq!(id, "aa".to_owned());
+				assert_eq!(client.unwrap(), "aa00".to_owned());
+				match args {
+					Query::FindNode { id, target: _ } => assert_eq!(HashId::from_str(id).unwrap(), HashId::new([255; 20])),
 					_ => panic!("wrong query")
 				}
 			},
@@ -108,11 +150,18 @@ mod tests {
 		let deserialize = de::from_str::<Message>(input).unwrap();
 
 		match deserialize {
-			Message::Response { id, client, values } => {
+			Message::Response { id, client, response } => {
 				assert_eq!(id, "aa".to_owned());
 				assert_eq!(client.unwrap(), "aa00".to_owned());
-				assert_eq!(values.get("token").unwrap(), &"secret".to_owned());
-				assert_eq!(values.get("nodes").unwrap(), &"compact_node_info".to_owned());
+				match response {
+					Response::FoundPeerNodes { id: _, token, nodes } => {
+						assert_eq!(token, "secret".to_owned());
+						assert_eq!(nodes, "compact_node_info".to_owned());
+					}
+					_ => {
+						panic!("wrong response");
+					}
+				}
 			},
 			_ => panic!("wrong command"),
 		}

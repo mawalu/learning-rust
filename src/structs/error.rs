@@ -23,3 +23,11 @@ impl fmt::Debug for InvalidHashIdError {
         write!(f, "Invalid HashId")
     }
 }
+
+pub struct InvalidCompactNodeError {}
+
+impl fmt::Debug for InvalidCompactNodeError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Invalid compact node")
+    }
+}
