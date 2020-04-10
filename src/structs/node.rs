@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use super::error::*;
 use std::convert::TryInto;
 use std::fmt;
@@ -63,10 +64,12 @@ impl PartialEq for Node {
     }
 }
 
+pub type PeerList = HashMap<HashId, Vec<Endpoint>>;
+
 #[derive(Copy, Clone, Debug, Eq)]
 pub struct Endpoint {
-    port: u16,
-    addr: Ipv4Addr,
+    pub port: u16,
+    pub addr: Ipv4Addr,
 }
 
 impl Endpoint {
@@ -89,6 +92,10 @@ impl Endpoint {
         let p = self.port.to_be_bytes();
 
         [a[0], a[1], a[2], a[3], p[0], p[1]]
+    }
+
+    pub fn to_string(&self) -> String {
+    	String::from_utf8(self.to_compact().to_vec()).unwrap()
     }
 }
 

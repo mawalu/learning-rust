@@ -31,6 +31,7 @@ pub enum Query {
         implied_port: Option<bool>,
         port: u16,
         token: String,
+        info_hash: String
     },
     Ping {
         id: String,

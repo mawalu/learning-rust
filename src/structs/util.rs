@@ -1,13 +1,10 @@
-use std::collections::HashMap;
 use std::cmp::Ordering;
 use std::fmt;
 use std::ops::BitXor;
 
 use super::error::*;
 
-type PeerList = HashMap<String, Vec<String>>;
-
-#[derive(Copy, Clone, Eq, Debug)]
+#[derive(Copy, Clone, Eq, Debug, Hash)]
 pub struct HashId {
     pub hash: [u8; 20],
 }
