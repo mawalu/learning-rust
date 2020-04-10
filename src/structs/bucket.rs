@@ -2,7 +2,7 @@ use super::error::*;
 use super::node::*;
 use super::util::*;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, Duration};
 
 #[derive(Debug)]
 pub struct Kbuckets {
@@ -41,20 +41,7 @@ impl Kbuckets {
     }
 
     pub fn try_insert(&mut self, our_id: &HashId, new_node: Node) {
-        let self_bucket = self.find(our_id).unwrap().clone();
-        let new_bucket = self.find_mut(new_node.node_id).unwrap();
-        if !new_bucket.insert(new_node).is_err() {
-            return;
-        }
-
-
-        if self_bucket.upper_boundary != new_bucket.upper_boundary {
-            return;
-        }
-
-        self.split(*our_id);
-
-        // find bucket, if place -> insert
+        // find bucket, if not full -> insert
         // if full -> find bucket for self
         // if self bucket == new bucket, split bucket at self
         // insert again
